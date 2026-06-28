@@ -210,8 +210,8 @@ if __name__ == "__main__":
 
     SEQ_LEN     = 201
     BATCH_SIZE  = 64
-    N_EPOCHS    = 30       # reduced for demo; use 100 for real run
-    PATIENCE    = 8
+    N_EPOCHS    = 60       # reduced for demo; use 100 for real run
+    PATIENCE    = 15
     LR          = 3e-4
 
     # ---- Load data ----
@@ -219,16 +219,28 @@ if __name__ == "__main__":
     #   flux_train = torch.tensor(np.load("train.npz")["flux"])
     #   y_train    = torch.tensor(np.load("train.npz")["labels"])
 
-    print("  Generating synthetic light curves (placeholder for Shreya's data)...")
-    X_train, y_train = make_synthetic_dataset(n_samples=3000, seq_len=SEQ_LEN,
-                                               pos_fraction=0.15, seed=0)
-    X_val,   y_val   = make_synthetic_dataset(n_samples=600,  seq_len=SEQ_LEN,
-                                               pos_fraction=0.15, seed=1)
+    import numpy as np
 
-    print(f"  Train: {X_train.shape}  |  Positives: {y_train.sum().int()}")
-    print(f"  Val:   {X_val.shape}    |  Positives: {y_val.sum().int()}")
+print("  Loading real Kepler data from Sara's pipeline...")
+data = np.load(r"E:\ISRO Exoplanet Hackthon\Phase One\Sara\sara\kepler_processed_dataset.npz")
 
-    # ---- Class imbalance ----
+X_all = torch.tensor(data['flux'],   dtype=torch.float32)
+y_all = torch.tensor(data['labels'], dtype=torch.float32)
+
+# 80/20 train-val split, stratified manually
+from sklearn.model_selection import train_test_split
+idx_train, idx_val = train_test_split(
+    range(len(y_all)), test_size=0.2, stratify=y_all.numpy(), random_state=42
+)
+
+X_train, y_train = X_all[idx_train], y_all[idx_train]
+X_val,   y_val   = X_all[idx_val],   y_all[idx_val]
+
+print(f"  Train: {X_train.shape}  |  Planets: {y_train.sum().int()}")
+print(f"  Val:   {X_val.shape}    |  Planets: {y_val.sum().int()}")
+
+
+# ---- Class imbalance ----
     n_pos = y_train.sum().item()
     n_neg = len(y_train) - n_pos
     pos_weight = torch.tensor(n_neg / n_pos, dtype=torch.float32)
